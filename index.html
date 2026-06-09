@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="24小时昼夜日晷时钟 — 随太阳方位转动的晷针阴影">
+  <meta name="theme-color" content="#0a0e1a">
+  <title>日晷 · 24小时昼夜时钟</title>
+  <style>
+    :root {
+      --sky-top: #0a0e1a;
+      --sky-mid: #1a2540;
+      --sky-bottom: #2d3a5c;
+      --dial-face: #c9a86c;
+      --dial-rim: #8b6914;
+      --dial-inner: #d4b87a;
+      --shadow: rgba(20, 12, 5, 0.72);
+      --text: #f5e6c8;
+      --accent: #ffd166;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      font-family: "Noto Serif SC", "Source Han Serif SC", "STSong", "SimSun", serif;
+      color: var(--text);
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100dvh;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+      background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 45%, var(--sky-bottom) 100%);
+      transition: background 2s ease;
+    }
+
+    .stars {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 2s ease;
+    }
+
+    .star {
+      position: absolute;
+      background: #fff;
+      border-radius: 50%;
+      animation: twinkle var(--dur, 3s) ease-in-out infinite alternate;
+    }
+
+    @keyframes twinkle {
+      from { opacity: 0.3; }
+      to { opacity: 1; }
+    }
+
+    .sun, .moon {
+      position: fixed;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      pointer-events: none;
+      transition: transform 1.5s ease, opacity 1.5s ease;
+      z-index: 0;
+    }
+
+    .sun {
+      background: radial-gradient(circle at 35% 35%, #fff9c4, #ffd54f 40%, #ff8f00);
+      box-shadow: 0 0 40px 12px rgba(255, 193, 7, 0.45);
+    }
+
+    .moon {
+      background: radial-gradient(circle at 35% 35%, #f0f4ff, #b0bec5 50%, #78909c);
+      box-shadow: 0 0 24px 6px rgba(176, 190, 197, 0.35);
+    }
+
+    header {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+      padding: 12px 16px 4px;
+    }
+
+    header h1 {
+      font-size: clamp(1.1rem, 4.5vw, 1.6rem);
+      font-weight: 600;
+      letter-spacing: 0.35em;
+      color: var(--accent);
+      text-shadow: 0 1px 8px rgba(0, 0, 0, 0.4);
+    }
+
+    header p {
+      font-size: clamp(0.7rem, 2.8vw, 0.85rem);
+      opacity: 0.75;
+      margin-top: 4px;
+      letter-spacing: 0.12em;
+    }
+
+    .clock-wrap {
+      position: relative;
+      z-index: 2;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      max-width: min(92vw, 92vh, 520px);
+      aspect-ratio: 1;
+      padding: 8px;
+    }
+
+    .dial-plate {
+      width: 100%;
+      height: 100%;
+      filter: drop-shadow(0 12px 32px rgba(0, 0, 0, 0.45));
+    }
+
+    .time-display {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+      padding: 8px 16px 20px;
+    }
+
+    .digital-time {
+      font-size: clamp(2rem, 10vw, 3.2rem);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.08em;
+      font-weight: 600;
+      text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+    }
+
+    .period-label {
+      font-size: clamp(0.85rem, 3.5vw, 1.05rem);
+      margin-top: 4px;
+      opacity: 0.85;
+      letter-spacing: 0.2em;
+    }
+
+    .solar-info {
+      font-size: clamp(0.65rem, 2.5vw, 0.78rem);
+      opacity: 0.55;
+      margin-top: 8px;
+      letter-spacing: 0.06em;
+    }
+
+    footer {
+      position: relative;
+      z-index: 2;
+      font-size: 0.65rem;
+      opacity: 0.4;
+      padding-bottom: 8px;
+      letter-spacing: 0.1em;
+    }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="stars" id="stars"></div>
+  <div class="sun" id="sun"></div>
+  <div class="moon" id="moon"></div>
+
+  <header>
+    <h1>日 晷</h1>
+    <p>二十四时辰 · 晷针随日而行</p>
+  </header>
+
+  <div class="clock-wrap">
+    <svg class="dial-plate" viewBox="0 0 400 400" aria-label="24小时日晷表盘">
+      <defs>
+        <radialGradient id="faceGrad" cx="50%" cy="45%" r="55%">
+          <stop offset="0%" stop-color="#e8d5a8"/>
+          <stop offset="70%" stop-color="#c9a86c"/>
+          <stop offset="100%" stop-color="#a08040"/>
+        </radialGradient>
+        <radialGradient id="innerGrad" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#d4b87a" stop-opacity="0.3"/>
+          <stop offset="100%" stop-color="#8b6914" stop-opacity="0.15"/>
+        </radialGradient>
+        <filter id="shadowBlur">
+          <feGaussianBlur stdDeviation="3"/>
+        </filter>
+        <linearGradient id="gnomonGrad" x1="0%" y1="100%" x2="0%" y2="0%">
+          <stop offset="0%" stop-color="#5c4033"/>
+          <stop offset="100%" stop-color="#8b6914"/>
+        </linearGradient>
+      </defs>
+
+      <!-- 外圈石质边框 -->
+      <circle cx="200" cy="200" r="196" fill="none" stroke="#6b4f1a" stroke-width="8"/>
+      <circle cx="200" cy="200" r="188" fill="url(#faceGrad)" stroke="#8b6914" stroke-width="2"/>
+
+      <!-- 内圈装饰 -->
+      <circle cx="200" cy="200" r="170" fill="url(#innerGrad)" stroke="#a08040" stroke-width="1" stroke-dasharray="4 6"/>
+
+      <!-- 刻度与数字由 JS 绘制 -->
+      <g id="ticks"></g>
+
+      <!-- 方位标记 -->
+      <text x="200" y="36" text-anchor="middle" fill="#5c3d0e" font-size="13" font-weight="600" opacity="0.8">子</text>
+      <text x="364" y="206" text-anchor="middle" fill="#5c3d0e" font-size="13" font-weight="600" opacity="0.8">卯</text>
+      <text x="200" y="378" text-anchor="middle" fill="#5c3d0e" font-size="13" font-weight="600" opacity="0.8">午</text>
+      <text x="36" y="206" text-anchor="middle" fill="#5c3d0e" font-size="13" font-weight="600" opacity="0.8">酉</text>
+
+      <!-- 晷针阴影 -->
+      <g id="shadowGroup" filter="url(#shadowBlur)">
+        <polygon id="shadow" points="200,200 200,200 200,200" fill="var(--shadow)" opacity="0.85"/>
+      </g>
+
+      <!-- 晷针 -->
+      <polygon points="200,200 196,120 204,120" fill="url(#gnomonGrad)" stroke="#4a3018" stroke-width="0.8"/>
+      <circle cx="200" cy="200" r="6" fill="#5c4033" stroke="#3e2723" stroke-width="1"/>
+      <circle cx="200" cy="200" r="2.5" fill="#8b6914"/>
+    </svg>
+  </div>
+
+  <div class="time-display">
+    <div class="digital-time" id="digitalTime">00:00:00</div>
+    <div class="period-label" id="periodLabel">子时</div>
+    <div class="solar-info" id="solarInfo">晷影指向 —</div>
+  </div>
+
+  <footer>依本地时间运转 · 日晷示时</footer>
+
+  <script>
+    const SHICHEN = [
+      '子时', '丑时', '寅时', '卯时', '辰时', '巳时',
+      '午时', '未时', '申时', '酉时', '戌时', '亥时'
+    ];
+
+    const PERIODS = [
+      { start: 0,  end: 5,  label: '深夜', top: '#050810', mid: '#0a1020', bottom: '#121a30' },
+      { start: 5,  end: 7,  label: '黎明', top: '#1a1535', mid: '#4a3060', bottom: '#c06040' },
+      { start: 7,  end: 9,  label: '清晨', top: '#5080b0', mid: '#90b8d8', bottom: '#f0c878' },
+      { start: 9,  end: 17, label: '白昼', top: '#2878c8', mid: '#68b0e8', bottom: '#d8e8f8' },
+      { start: 17, end: 19, label: '黄昏', top: '#304878', mid: '#c06050', bottom: '#f0a050' },
+      { start: 19, end: 21, label: '傍晚', top: '#1a2040', mid: '#403060', bottom: '#806080' },
+      { start: 21, end: 24, label: '夜晚', top: '#080c18', mid: '#101828', bottom: '#1a2540' }
+    ];
+
+    const ticksGroup = document.getElementById('ticks');
+    const shadowEl = document.getElementById('shadow');
+    const digitalTime = document.getElementById('digitalTime');
+    const periodLabel = document.getElementById('periodLabel');
+    const solarInfo = document.getElementById('solarInfo');
+    const starsEl = document.getElementById('stars');
+    const sunEl = document.getElementById('sun');
+    const moonEl = document.getElementById('moon');
+
+    const CX = 200, CY = 200, R_TICK = 175, R_NUM = 155;
+
+    function buildTicks() {
+      const ns = 'http://www.w3.org/2000/svg';
+      for (let h = 0; h < 24; h++) {
+        const angle = (h / 24) * 360 - 90;
+        const rad = angle * Math.PI / 180;
+        const isMajor = h % 6 === 0;
+        const isHalf = h % 3 === 0;
+        const len = isMajor ? 18 : isHalf ? 12 : 7;
+        const x1 = CX + Math.cos(rad) * (R_TICK - len);
+        const y1 = CY + Math.sin(rad) * (R_TICK - len);
+        const x2 = CX + Math.cos(rad) * R_TICK;
+        const y2 = CY + Math.sin(rad) * R_TICK;
+
+        const line = document.createElementNS(ns, 'line');
+        line.setAttribute('x1', x1);
+        line.setAttribute('y1', y1);
+        line.setAttribute('x2', x2);
+        line.setAttribute('y2', y2);
+        line.setAttribute('stroke', '#5c3d0e');
+        line.setAttribute('stroke-width', isMajor ? 2.2 : isHalf ? 1.4 : 0.8);
+        line.setAttribute('opacity', isMajor ? 0.9 : 0.65);
+        ticksGroup.appendChild(line);
+
+        const nx = CX + Math.cos(rad) * R_NUM;
+        const ny = CY + Math.sin(rad) * R_NUM;
+        const text = document.createElementNS(ns, 'text');
+        text.setAttribute('x', nx);
+        text.setAttribute('y', ny);
+        text.setAttribute('text-anchor', 'middle');
+        text.setAttribute('dominant-baseline', 'central');
+        text.setAttribute('fill', '#4a3010');
+        text.setAttribute('font-size', isMajor ? '14' : '10');
+        text.setAttribute('font-weight', isMajor ? '600' : '400');
+        text.setAttribute('opacity', isMajor ? 0.95 : 0.7);
+        text.textContent = String(h).padStart(2, '0');
+        ticksGroup.appendChild(text);
+      }
+    }
+
+    function buildStars() {
+      for (let i = 0; i < 80; i++) {
+        const s = document.createElement('div');
+        s.className = 'star';
+        const size = Math.random() * 2 + 0.5;
+        s.style.cssText = `
+          width:${size}px;height:${size}px;
+          left:${Math.random() * 100}%;
+          top:${Math.random() * 55}%;
+          --dur:${2 + Math.random() * 4}s;
+          animation-delay:${Math.random() * 3}s;
+        `;
+        starsEl.appendChild(s);
+      }
+    }
+
+    function getShichen(hour) {
+      return SHICHEN[Math.floor(((hour + 1) % 24) / 2)];
+    }
+
+    function getPeriod(hour) {
+      return PERIODS.find(p => hour >= p.start && hour < p.end) || PERIODS[PERIODS.length - 1];
+    }
+
+    function lerpColor(a, b, t) {
+      const parse = c => c.match(/\w\w/g).map(x => parseInt(x, 16));
+      const ca = parse(a.slice(1)), cb = parse(b.slice(1));
+      const mix = ca.map((v, i) => Math.round(v + (cb[i] - v) * t));
+      return '#' + mix.map(v => v.toString(16).padStart(2, '0')).join('');
+    }
+
+    function updateSky(t) {
+      let p1, p2, blend;
+
+      for (let i = 0; i < PERIODS.length; i++) {
+        const p = PERIODS[i];
+        if (t >= p.start && t < p.end) {
+          p1 = p;
+          p2 = PERIODS[(i + 1) % PERIODS.length];
+          blend = (t - p.start) / (p.end - p.start);
+          break;
+        }
+      }
+      if (!p1) p1 = PERIODS[PERIODS.length - 1], p2 = PERIODS[0], blend = 0;
+
+      const root = document.documentElement.style;
+      root.setProperty('--sky-top', lerpColor(p1.top, p2.top, blend));
+      root.setProperty('--sky-mid', lerpColor(p1.mid, p2.mid, blend));
+      root.setProperty('--sky-bottom', lerpColor(p1.bottom, p2.bottom, blend));
+
+      const isNight = t < 5 || t >= 19;
+      starsEl.style.opacity = isNight ? Math.min(1, t < 5 ? (5 - t) / 2 : (t - 19) / 2 + 0.3) : '0';
+
+      const sunAngle = ((t - 6) / 12) * Math.PI;
+      const sunX = 50 + Math.cos(sunAngle) * 38;
+      const sunY = isNight ? 120 : 12 + (1 - Math.cos(sunAngle)) * 8;
+      const sunVis = t >= 5.5 && t < 18.5 ? 1 : 0;
+
+      sunEl.style.opacity = sunVis;
+      sunEl.style.transform = `translate(calc(${sunX}vw - 24px), ${sunY}vh)`;
+
+      const moonAngle = ((t - 18) / 12) * Math.PI;
+      const moonX = 50 + Math.cos(moonAngle) * 35;
+      const moonY = 10 + (1 - Math.abs(Math.sin(moonAngle))) * 6;
+      const moonVis = t < 6.5 || t >= 17.5 ? 1 : 0;
+
+      moonEl.style.opacity = moonVis;
+      moonEl.style.transform = `translate(calc(${moonX}vw - 24px), ${moonY}vh)`;
+    }
+
+    function updateShadow(hour, minute, second) {
+      const totalHours = hour + minute / 60 + second / 3600;
+      const angleDeg = (totalHours / 24) * 360 - 90;
+      const rad = angleDeg * Math.PI / 180;
+
+      const shadowLen = 130;
+      const shadowWidth = 22;
+
+      const tipX = CX + Math.cos(rad) * shadowLen;
+      const tipY = CY + Math.sin(rad) * shadowLen;
+      const perpRad = rad + Math.PI / 2;
+      const wX = Math.cos(perpRad) * shadowWidth / 2;
+      const wY = Math.sin(perpRad) * shadowWidth / 2;
+
+      shadowEl.setAttribute('points', [
+        `${CX - wX},${CY - wY}`,
+        `${CX + wX},${CY + wY}`,
+        `${tipX + wX * 0.3},${tipY + wY * 0.3}`,
+        `${tipX - wX * 0.3},${tipY - wY * 0.3}`
+      ].join(' '));
+    }
+
+    function tick() {
+      const now = new Date();
+      const h = now.getHours();
+      const m = now.getMinutes();
+      const s = now.getSeconds();
+
+      digitalTime.textContent =
+        `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+
+      const shichen = getShichen(h);
+      const period = getPeriod(h + m / 60);
+      periodLabel.textContent = `${shichen} · ${period.label}`;
+
+      const shadowHour = Math.floor((h + m / 60 + s / 3600) % 24);
+      solarInfo.textContent = `晷影指向 ${String(shadowHour).padStart(2, '0')} 时`;
+
+      updateShadow(h, m, s);
+      updateSky(h + m / 60 + s / 3600);
+    }
+
+    buildTicks();
+    buildStars();
+    tick();
+    setInterval(tick, 1000);
+  </script>
+</body>
+</html>

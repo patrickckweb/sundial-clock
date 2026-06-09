@@ -258,11 +258,16 @@
 
     const CX = 200, CY = 200, R_TICK = 175, R_NUM = 155;
 
+    // 水平日晷：晷针指北，晷影与太阳方位相反；刻度标在晷影落点
+    // 0°=东(右) 90°=南(下) 180°=西(左) 270°=北(上)
+    function shadowAngleDeg(hours) {
+      return ((hours + 6) % 24) * 15;
+    }
+
     function buildTicks() {
       const ns = 'http://www.w3.org/2000/svg';
       for (let h = 0; h < 24; h++) {
-        const angle = (h / 24) * 360 - 90;
-        const rad = angle * Math.PI / 180;
+        const rad = shadowAngleDeg(h) * Math.PI / 180;
         const isMajor = h % 6 === 0;
         const isHalf = h % 3 === 0;
         const len = isMajor ? 18 : isHalf ? 12 : 7;
@@ -369,8 +374,7 @@
 
     function updateShadow(hour, minute, second) {
       const totalHours = hour + minute / 60 + second / 3600;
-      const angleDeg = (totalHours / 24) * 360 - 90;
-      const rad = angleDeg * Math.PI / 180;
+      const rad = shadowAngleDeg(totalHours) * Math.PI / 180;
 
       const shadowLen = 130;
       const shadowWidth = 22;

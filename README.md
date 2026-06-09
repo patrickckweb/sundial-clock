@@ -6,7 +6,7 @@
 
 部署 GitHub Pages 后，访问地址为：
 
-`https://<你的用户名>.github.io/sundial-clock/`
+https://patrickckweb.github.io/sundial-clock/
 
 ## 本地预览
 

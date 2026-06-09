@@ -14,6 +14,18 @@
 
 ## 部署到 GitHub Pages
 
-1. 在 GitHub 创建仓库 `sundial-clock`
-2. 推送本目录代码到 `main` 分支
-3. 仓库 Settings → Pages → Source 选择 `Deploy from a branch`，Branch 选 `main` / `/ (root)`
+### 一键部署（推荐）
+
+```powershell
+cd D:\coding
+.\deploy.ps1
+```
+
+脚本会自动登录 GitHub、创建公开仓库、推送代码并启用 Pages。
+
+### 手动部署
+
+1. 在 GitHub 创建公开仓库 `sundial-clock`
+2. `git remote add origin https://github.com/<用户名>/sundial-clock.git`
+3. `git push -u origin main`
+4. 仓库 **Settings → Pages** → Source 选 `main` / `/ (root)`
